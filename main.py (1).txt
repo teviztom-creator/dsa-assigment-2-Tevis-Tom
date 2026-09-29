@@ -1,0 +1,198 @@
+"""
+Railway Booking System - Hash Table Collision Resolution
+Exp 12 - CO1, CO3, CO4 | L4
+
+Booking IDs: 23, 43, 13, 33, 53, 63, 73
+"""
+
+class HashTable:
+    def __init__(self, size=10):
+        self.size = size
+
+    def h1(self, key):
+        return key % self.size
+
+    def h2(self, key):
+        return 7 - (key % 7)  # second hash for double hashing, prime < size
+
+    def insert_linear(self, keys):
+        table = [None] * self.size
+        log = []
+        for key in keys:
+            probes = 0
+            idx = self.h1(key)
+            while True:
+                probes += 1
+                if table[idx] is None:
+                    table[idx] = key
+                    break
+                idx = (idx + 1) % self.size
+                if probes > self.size:
+                    raise Exception("Table Full")
+            log.append((key, probes))
+        return table, log
+
+    def insert_quadratic(self, keys, c1=1, c2=1):
+        table = [None] * self.size
+        log = []
+        for key in keys:
+            probes = 0
+            idx0 = self.h1(key)
+            i = 0
+            while True:
+                probes += 1
+                idx = (idx0 + c1*i + c2*i*i) % self.size
+                if table[idx] is None:
+                    table[idx] = key
+                    break
+                i += 1
+                if i >= self.size:
+                    raise Exception(f"Cannot insert {key} with current m={self.size} - need larger prime size")
+            log.append((key, probes))
+        return table, log
+
+    def insert_double(self, keys):
+        table = [None] * self.size
+        log = []
+        for key in keys:
+            probes = 0
+            idx0 = self.h1(key)
+            step = self.h2(key)
+            i = 0
+            while True:
+                probes += 1
+                idx = (idx0 + i*step) % self.size
+                if table[idx] is None:
+                    table[idx] = key
+                    break
+                i += 1
+                if i >= self.size:
+                    raise Exception(f"Cannot insert {key}")
+            log.append((key, probes))
+        return table, log
+
+    def search(self, key, table, method='linear'):
+        probes = 0
+        idx0 = self.h1(key)
+        if method == 'linear':
+            idx = idx0
+            while probes < self.size:
+                probes += 1
+                if table[idx] is None:
+                    return False, probes
+                if table[idx] == key:
+                    return True, probes
+                idx = (idx + 1) % self.size
+            return False, probes
+        elif method == 'quadratic':
+            i=0
+            while probes < self.size:
+                probes+=1
+                idx = (idx0 + i + i*i) % self.size
+                if table[idx] is None:
+                    return False, probes
+                if table[idx]==key:
+                    return True, probes
+                i+=1
+            return False, probes
+        elif method == 'double':
+            step = self.h2(key)
+            i=0
+            while probes < self.size:
+                probes+=1
+                idx = (idx0 + i*step) % self.size
+                if table[idx] is None:
+                    return False, probes
+                if table[idx]==key:
+                    return True, probes
+                i+=1
+            return False, probes
+
+
+def print_table(table):
+    print(f"{'Index':<6} | Booking ID")
+    print("-"*20)
+    for i,v in enumerate(table):
+        print(f"{i:<6} | {v if v is not None else '---'}")
+    print()
+
+def run_for_size(size, booking_ids):
+    ht = HashTable(size)
+    print(f"\n==================== TABLE SIZE = {size} ====================")
+    print(f"h1(k) = k % {size}, h2(k)=7-(k%7)")
+    
+    lt, ll = ht.insert_linear(booking_ids)
+    print(f"\n[1] LINEAR PROBING (m={size})")
+    print_table(lt)
+    print("Insertion probes:", ll, f"Avg={sum(p for _,p in ll)/len(ll):.2f}")
+
+    try:
+        qt, ql = ht.insert_quadratic(booking_ids)
+        print(f"[2] QUADRATIC PROBING c1=1,c2=1 (m={size})")
+        print_table(qt)
+        print("Insertion probes:", ql, f"Avg={sum(p for _,p in ql)/len(ql):.2f}")
+    except Exception as e:
+        print(f"[2] QUADRATIC PROBING FAILED at m={size}: {e}")
+        print("  -> Reason: m=10 is not prime, quadratic probes only 4 distinct slots.")
+        print("  -> Retrying with next prime m=11")
+        ht2 = HashTable(11)
+        qt, ql = ht2.insert_quadratic(booking_ids)
+        print(f"[2] QUADRATIC PROBING c1=1,c2=1 (m=11)")
+        print_table(qt)
+        print("Insertion probes:", ql, f"Avg={sum(p for _,p in ql)/len(ql):.2f}")
+        # keep for later search, pad to compare
+        # return both sizes
+        qt_for_search = qt
+        q_ht = ht2
+    else:
+        qt_for_search = qt
+        q_ht = ht
+
+    dt, dl = ht.insert_double(booking_ids)
+    print(f"[3] DOUBLE HASHING (m={size})")
+    print_table(dt)
+    print("Insertion probes:", dl, f"Avg={sum(p for _,p in dl)/len(dl):.2f}")
+
+    # b) Search
+    print(f"\n--- b) SEARCH ANALYSIS (m={size}) ---")
+    for key in [33, 73, 83, 99]:
+        typ = "EXIST" if key in booking_ids else "NON-EXIST"
+        f1,p1 = ht.search(key, lt, 'linear')
+        # use appropriate ht for quadratic
+        f2,p2 = q_ht.search(key, qt_for_search, 'quadratic')
+        f3,p3 = ht.search(key, dt, 'double')
+        print(f"Key {key} ({typ}): Linear->{p1} probes ({'F' if f1 else 'NF'}), Quad->{p2} probes ({'F' if f2 else 'NF'}), Double->{p3} probes ({'F' if f3 else 'NF'})")
+
+    return lt, qt_for_search, dt
+
+if __name__ == "__main__":
+    booking_ids = [23, 43, 13, 33, 53, 63, 73]
+    print("RAILWAY BOOKING SYSTEM HASHING - EXP 12")
+    print(f"Booking IDs: {booking_ids}")
+    
+    # Main required size = 10 to show collision (all %10==3)
+    run_for_size(10, booking_ids)
+
+    print("\n" + "="*60)
+    print("c) LOAD FACTOR ANALYSIS")
+    print("="*60)
+    print("""
+m = 10, n = 7 => α = 7/10 = 0.7
+m = 11, n = 7 => α = 7/11 = 0.636
+
+Performance vs Load Factor:
+- Linear: Expected unsuccessful search ≈ 0.5*(1 + 1/(1-α)^2)
+  At α=0.7 => ~6 probes. Suffers PRIMARY CLUSTERING.
+- Quadratic: Better, avoids primary clustering, but SECONDARY CLUSTERING.
+  Needs prime table size & α < 0.5 for guarantee.
+- Double Hashing: Expected ≈ 1/(1-α) ≈ 3.33 at α=0.7, best distribution.
+  Probe sequence depends on key, so no clustering.
+
+Comparison Result:
+- Linear: Simplest, cache-friendly, but 1+2+3+4+5+6+7 = 28 probes total for this dataset.
+- Quadratic: Needs prime m. Better distribution, but may fail if m non-prime.
+- Double Hashing: Most uniform, least probes (avg ~1.5-2.0), best for heavy collision.
+
+MOST SUITABLE: DOUBLE HASHING for this railway booking case where IDs collide heavily.
+If implementation simplicity is priority and table kept <50% full, Linear is okay.
+""")

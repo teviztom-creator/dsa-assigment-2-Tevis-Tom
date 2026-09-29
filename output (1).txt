@@ -1,0 +1,85 @@
+RAILWAY BOOKING SYSTEM HASHING - EXP 12
+Booking IDs: [23, 43, 13, 33, 53, 63, 73]
+
+==================== TABLE SIZE = 10 ====================
+h1(k) = k % 10, h2(k)=7-(k%7)
+
+[1] LINEAR PROBING (m=10)
+Index  | Booking ID
+--------------------
+0      | ---
+1      | ---
+2      | ---
+3      | 23
+4      | 43
+5      | 13
+6      | 33
+7      | 53
+8      | 63
+9      | 73
+
+Insertion probes: [(23, 1), (43, 2), (13, 3), (33, 4), (53, 5), (63, 6), (73, 7)] Avg=4.00
+[2] QUADRATIC PROBING FAILED at m=10: Cannot insert 33 with current m=10 - need larger prime size
+  -> Reason: m=10 is not prime, quadratic probes only 4 distinct slots.
+  -> Retrying with next prime m=11
+[2] QUADRATIC PROBING c1=1,c2=1 (m=11)
+Index  | Booking ID
+--------------------
+0      | 33
+1      | 23
+2      | 13
+3      | ---
+4      | ---
+5      | ---
+6      | ---
+7      | 73
+8      | 63
+9      | 53
+10     | 43
+
+Insertion probes: [(23, 1), (43, 1), (13, 1), (33, 1), (53, 1), (63, 1), (73, 1)] Avg=1.00
+[3] DOUBLE HASHING (m=10)
+Index  | Booking ID
+--------------------
+0      | 63
+1      | ---
+2      | ---
+3      | 23
+4      | 13
+5      | 33
+6      | 53
+7      | 73
+8      | ---
+9      | 43
+
+Insertion probes: [(23, 1), (43, 2), (13, 2), (33, 2), (53, 2), (63, 2), (73, 2)] Avg=1.86
+
+--- b) SEARCH ANALYSIS (m=10) ---
+Key 33 (EXIST): Linear->4 probes (F), Quad->1 probes (F), Double->2 probes (F)
+Key 73 (EXIST): Linear->7 probes (F), Quad->1 probes (F), Double->2 probes (F)
+Key 83 (NON-EXIST): Linear->8 probes (NF), Quad->1 probes (NF), Double->6 probes (NF)
+Key 99 (NON-EXIST): Linear->2 probes (NF), Quad->3 probes (NF), Double->3 probes (NF)
+
+============================================================
+c) LOAD FACTOR ANALYSIS
+============================================================
+
+m = 10, n = 7 => α = 7/10 = 0.7
+m = 11, n = 7 => α = 7/11 = 0.636
+
+Performance vs Load Factor:
+- Linear: Expected unsuccessful search ≈ 0.5*(1 + 1/(1-α)^2)
+  At α=0.7 => ~6 probes. Suffers PRIMARY CLUSTERING.
+- Quadratic: Better, avoids primary clustering, but SECONDARY CLUSTERING.
+  Needs prime table size & α < 0.5 for guarantee.
+- Double Hashing: Expected ≈ 1/(1-α) ≈ 3.33 at α=0.7, best distribution.
+  Probe sequence depends on key, so no clustering.
+
+Comparison Result:
+- Linear: Simplest, cache-friendly, but 1+2+3+4+5+6+7 = 28 probes total for this dataset.
+- Quadratic: Needs prime m. Better distribution, but may fail if m non-prime.
+- Double Hashing: Most uniform, least probes (avg ~1.5-2.0), best for heavy collision.
+
+MOST SUITABLE: DOUBLE HASHING for this railway booking case where IDs collide heavily.
+If implementation simplicity is priority and table kept <50% full, Linear is okay.
+
